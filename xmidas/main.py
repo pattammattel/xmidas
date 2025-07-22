@@ -1279,11 +1279,11 @@ class midasWindow(QtWidgets.QMainWindow):
                 f"maxiumum number of "
                 f"plot windows. First {len(self.scWindowDict)} "
                 f"combinations will be plotted. \n      Proceed?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
 
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
 
                 for i, pair in enumerate(allElemCombNum):
                     im1 = self.displayedStack[pair[0]]
@@ -1294,7 +1294,7 @@ class midasWindow(QtWidgets.QMainWindow):
                     self.scWindowDict[i] = ScatterPlot(im1, im2, (str(im1Name), str(im2Name)))
                     self.scWindowDict[i].show()
 
-            if reply == QMessageBox.No:
+            if reply == QMessageBox.StandardButton.No:
                 return
 
         else:
@@ -1681,11 +1681,11 @@ class midasWindow(QtWidgets.QMainWindow):
             self,
             "Window Close",
             "Are you sure you want to close?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             event.accept()
             QApplication.closeAllWindows()
         else:
