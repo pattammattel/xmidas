@@ -9,3 +9,4 @@ scikit-learn
 scipy
 tifffile
 packaging
+pyqt6
