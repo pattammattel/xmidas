@@ -23,19 +23,18 @@ from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
 
-from utils import *
-from utils.color_maps import *
-from models.encoders import jsonEncoder
-from utils.utils import xanes_fitting, xanes_fitting_1D, xanes_fitting_Binned
+from xmidas.utils import *
+from xmidas.utils.color_maps import *
+from xmidas.models.encoders import jsonEncoder
+from xmidas.utils.utils import xanes_fitting, xanes_fitting_1D, xanes_fitting_Binned
+from xmidas.gui.windows.multichannel_viewer import MultiChannelWindow
+from xmidas.gui.windows.decomposition_viewer import *
+
 cmap_dict = create_color_maps()
 ui_dir = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "../layout"
 ))
-
-from gui.windows.multichannel_viewer import MultiChannelWindow
-from gui.windows.decomposition_viewer import *
-
 
 class XANESViewer(QtWidgets.QMainWindow):
     def __init__(self, im_stack=None, e_list=None, refs=None, ref_names=None):

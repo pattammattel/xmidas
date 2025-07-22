@@ -18,8 +18,8 @@ from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
 
-from utils import *
-from utils.color_maps import *
+from xmidas.utils import *
+from xmidas.utils.color_maps import *
 
 cmap_dict = create_color_maps()
 

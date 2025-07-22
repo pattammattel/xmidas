@@ -2,7 +2,7 @@
 
 # Author: Ajith Pattammattel
 # First Version on:06-23-2020
-
+#python 3.12 update on July 2025
 __version__ = "1.0.0"
 
 import argparse
@@ -35,14 +35,14 @@ from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
 
 
-from utils.utils import *
-from utils.color_maps import create_color_maps
-from models.encoders import jsonEncoder
+from xmidas.utils.utils import *
+from xmidas.utils.color_maps import create_color_maps
+from xmidas.models.encoders import jsonEncoder
 
-from gui.windows.xanes_viewer import XANESViewer
-from gui.windows.multichannel_viewer import MultiChannelWindow
-from gui.windows.mask_maker import MaskSpecViewer
-from gui.windows.singleStackViewer import *
+from xmidas.gui.windows.xanes_viewer import XANESViewer
+from xmidas.gui.windows.multichannel_viewer import MultiChannelWindow
+from xmidas.gui.windows.mask_maker import MaskSpecViewer
+from xmidas.gui.windows.singleStackViewer import *
 
 cmap_dict = create_color_maps()
 

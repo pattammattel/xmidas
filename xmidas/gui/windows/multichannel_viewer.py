@@ -18,8 +18,8 @@ ui_dir = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "../layout"
 ))
-from utils.color_maps import *
-from models.encoders import jsonEncoder
+from xmidas.utils.color_maps import *
+from xmidas.models.encoders import jsonEncoder
 cmap_dict = create_color_maps()
 
 class MultiChannelWindow(QtWidgets.QMainWindow):
