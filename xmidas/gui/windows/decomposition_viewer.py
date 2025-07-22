@@ -17,10 +17,11 @@ from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
 
-from gui.windows.multichannel_viewer import MultiChannelWindow
-from utils import *
-from utils.color_maps import *
-from models.encoders import jsonEncoder
+from xmidas.gui.windows.multichannel_viewer import MultiChannelWindow
+from xmidas.utils import *
+from xmidas.utils.color_maps import *
+from xmidas.models.encoders import jsonEncoder
+from xmidas.gui.windows.singleStackViewer import *
 cmap_dict = create_color_maps()
 
 ui_dir = os.path.normpath(os.path.join(
@@ -28,7 +29,7 @@ ui_dir = os.path.normpath(os.path.join(
     "../layout"
 ))
 
-from gui.windows.singleStackViewer import *
+
 
 
 class DecomposeViewer(QtWidgets.QMainWindow):
