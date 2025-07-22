@@ -52,12 +52,6 @@ conda activate xmidas-env
 pip install -r requirements.txt
 ```
 
-If you prefer Conda-based installation:
-
-```bash
-conda env update -f MiscFiles-FindProperLocation/environment.yml
-conda activate xmidas-env
-```
 
 ---
 
@@ -67,11 +61,6 @@ conda activate xmidas-env
 python -m xmidas.main
 ```
 
-Or if entry point is configured:
-
-```bash
-xmidas
-```
 
 ---
 
