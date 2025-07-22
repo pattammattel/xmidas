@@ -10,3 +10,4 @@ scipy
 tifffile
 packaging
 pyqt6
+xraydb
