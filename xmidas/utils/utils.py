@@ -15,12 +15,15 @@ from scipy.signal import savgol_filter
 from skimage.transform import resize
 from skimage import filters
 from sklearn import linear_model
-from utils.larch_norm import pre_edge_simple
+
 # from larch.xafs import pre_edge, preedge, mback
 # from larch.io import read_ascii, read_athena
 # from larch import Group
 import xraydb
 from pystackreg import StackReg
+
+from xmidas.utils.larch_norm import pre_edge_simple
+
 
 logger = logging.getLogger()
 
