@@ -4,8 +4,10 @@ Credits
 
 Maintainer
 ----------
+Ajit Pattammattel , pattammattel@bnl.gov
 
 * Brookhaven National Lab <>
+
 
 Contributors
 ------------
