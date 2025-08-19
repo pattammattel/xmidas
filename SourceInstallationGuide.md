@@ -58,7 +58,7 @@ pip install -r requirements.txt
 ### 4. Run XMIDAS
 
 ```bash
-python -m xmidas.main
+python -m main
 ```
 
 
