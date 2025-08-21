@@ -20,13 +20,13 @@ from packaging import version
 
 from PyQt6 import QtWidgets, QtCore, QtGui, uic, QtTest
 from PyQt6.QtGui import QMovie
-from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication, QAbstractItemView, QTableWidgetItem
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
 
 from xmidas.utils import *
 from xmidas.utils.color_maps import *
 from xmidas.models.encoders import jsonEncoder
-from xmidas.utils.utils import xanes_fitting, xanes_fitting_1D, xanes_fitting_Binned
+from xmidas.utils.utils import xanes_fitting, xanes_fitting_1D, xanes_fitting_Binned, interploate_E, get_sum_spectra, get_mean_spectra, normalize_and_scale
 from xmidas.gui.windows.multichannel_viewer import MultiChannelWindow
 from xmidas.gui.windows.decomposition_viewer import *
 
@@ -312,7 +312,7 @@ class XANESViewer(QtWidgets.QMainWindow):
         self.re_fit_xanes()
 
     def fit_point_spectrum(self, event):
-        if event.type() == QtCore.QEvent.MouseButtonDblClick:
+        if event.type() == QtCore.QEvent.Type.MouseButtonDblClick:
             if event.button() == QtCore.Qt.LeftButton:
                 self.xpixel = int(self.image_view.view.mapSceneToView(event.pos()).x())
                 zlim, ylim, xlim = self.im_stack.shape
@@ -646,15 +646,18 @@ class XANESViewer(QtWidgets.QMainWindow):
             self.user_wd = os.path.dirname(file_name)
             QMessageBox.information(self,"Saved", f"data saved to {self.user_wd}")
 
+
 class RefChooser(QtWidgets.QMainWindow):
-    choosenRefsSignal: pyqtSignal = QtCore.pyqtSignal(list)
-    fitResultsSignal: pyqtSignal = QtCore.pyqtSignal(np.ndarray, float, np.ndarray)
+    choosenRefsSignal = QtCore.pyqtSignal(list)
+    fitResultsSignal = QtCore.pyqtSignal(np.ndarray, float, np.ndarray)
 
     def __init__(self, ref_names, im_stack, e_list, refs, e_shift, fit_model):
-        super(RefChooser, self).__init__()
+        super().__init__()
         uic.loadUi(os.path.join(ui_dir, "RefChooser.ui"), self)
+
         self.user_wd = os.path.abspath("~")
-        self.centralwidget.setStyleSheet(open(os.path.join(ui_dir, "css/defaultStyle.css")).read())
+        self.setStyleSheet(open(os.path.join(ui_dir, "css/defaultStyle.css")).read())
+
         self.ref_names = ref_names
         self.refs = refs
         self.im_stack = im_stack
@@ -665,128 +668,90 @@ class RefChooser(QtWidgets.QMainWindow):
         self.all_boxes = []
         self.rFactorList = []
 
+        self.setupUI()
+
+    def setupUI(self):
         self.displayCombinations()
 
-        # selection become more apparent than default with red-ish color
-        self.tableWidget.setStyleSheet("background-color: white; selection-background-color: rgb(200,0,0);")
+        self.tableWidget.setStyleSheet(
+            "background-color: white; selection-background-color: rgb(200,0,0);"
+        )
 
-        # add a line to the plot to walk through the table. Note that the table is not sorted
         self.selectionLine = pg.InfiniteLine(
-            pos=1, angle=90, pen=pg.mkPen("m", width=2.5), movable=True, bounds=None, label="Move Me!"
+            pos=1, angle=90, pen=pg.mkPen("m", width=2.5), movable=True, label="Move Me!"
         )
         self.stat_view.setLabel("bottom", "Fit ID")
         self.stat_view.setLabel("left", "Reduced Chi^2")
 
-        for n, i in enumerate(self.ref_names):
-            self.cb_i = QtWidgets.QCheckBox(self.ref_box_frame)
-            if n == 0:
-                self.cb_i.setChecked(True)
-                self.cb_i.setEnabled(False)
-            self.cb_i.setObjectName(i)
-            self.cb_i.setText(i)
-            self.gridLayout_2.addWidget(self.cb_i, n, 0, 1, 1)
-            self.cb_i.toggled.connect(self.enableApply)
-            self.all_boxes.append(self.cb_i)
+        for n, name in enumerate(self.ref_names):
+            checkbox = QtWidgets.QCheckBox(self.ref_box_frame)
+            checkbox.setObjectName(name)
+            checkbox.setText(name)
+            checkbox.setChecked(n == 0)
+            checkbox.setEnabled(n != 0)
+            checkbox.toggled.connect(self.enableApply)
+            self.gridLayout_2.addWidget(checkbox, n, 0, 1, 1)
+            self.all_boxes.append(checkbox)
 
-        # connections
         self.pb_apply.clicked.connect(self.clickedWhichAre)
         self.pb_combo.clicked.connect(self.tryAllCombo)
         self.actionExport_Results_csv.triggered.connect(self.exportFitResults)
         self.selectionLine.sigPositionChanged.connect(self.updateFitWithLine)
         self.tableWidget.itemSelectionChanged.connect(self.updateWithTableSelection)
-        # self.stat_view.scene().sigMouseClicked.connect(self.moveSelectionLine)
         self.stat_view.mouseDoubleClickEvent = self.moveSelectionLine
         self.sb_max_combo.valueChanged.connect(self.displayCombinations)
-        # self.pb_sort_with_r.clicked.connect(lambda: self.tableWidget.sortItems(3, QtCore.Qt.AscendingOrder))
         self.pb_sort_with_r.clicked.connect(self.sortTable)
         self.cb_sorter.currentTextChanged.connect(self.sortTable)
 
-    def clickedWhich(self):
-        button_name = self.sender()
-
     def populateChecked(self):
-        self.onlyCheckedBoxes = []
-        for names in self.all_boxes:
-            if names.isChecked():
-                self.onlyCheckedBoxes.append(names.objectName())
+        self.onlyCheckedBoxes = [cb.objectName() for cb in self.all_boxes if cb.isChecked()]
 
-    QtCore.pyqtSlot()
-
+    @QtCore.pyqtSlot()
     def clickedWhichAre(self):
         self.populateChecked()
         self.choosenRefsSignal.emit(self.onlyCheckedBoxes)
 
     def generateRefList(self, ref_list, maxCombo, minCombo=1):
-
-        """
-        Creates a list of reference combinations for xanes fitting
-
-        Paramaters;
-
-        ref_list (list): list of ref names from the header
-        maxCombo (int): maximum number of ref lists in combination
-        minCombo (int): min number of ref lists in combination
-
-        returns;
-
-        1. int: length of total number of combinations
-        2. list: all the combinations
-
-        """
-
-        if not maxCombo > len(ref_list):
-
-            iter_list = []
-            while minCombo < maxCombo + 1:
-                iter_list += list(combinations(ref_list, minCombo))
-                minCombo += 1
-            return len(iter_list), iter_list
-
-        else:
-            raise ValueError(" Maximum numbinations cannot be larger than number of list items")
+        if maxCombo > len(ref_list):
+            raise ValueError("Maximum combinations cannot exceed number of references")
+        combinations_list = [combo for i in range(minCombo, maxCombo + 1) for combo in combinations(ref_list, i)]
+        return len(combinations_list), combinations_list
 
     def displayCombinations(self):
         niter, self.iter_list = self.generateRefList(self.ref_names[1:], self.sb_max_combo.value())
-        self.label_nComb.setText(str(niter) + " Combinations")
+        self.label_nComb.setText(f"{niter} Combinations")
 
     @QtCore.pyqtSlot()
     def tryAllCombo(self):
-        # empty list to to keep track and plot of reduced chi2 of all the fits
         self.rfactor_list = []
+        self.results_data = []
 
-        # create dataframe for the table
-        self.df = pd.DataFrame(
-            columns=["Fit Number", "References", "Coefficients", "R-Factor", "R^2", "chi^2", "red-chi^2", "Score"]
-        )
-
-        # df columns is the header for the table widget
-        self.tableWidget.setHorizontalHeaderLabels(self.df.columns)
-        # self.iter_list = list(combinations(self.ref_names[1:],self.sb_max_combo.value()))
+        self.tableWidget.setRowCount(0)
+        self.tableWidget.setColumnCount(9)
+        self.tableWidget.setHorizontalHeaderLabels([
+            "Fit Number", "References", "Coefficients", "Sum of Coefficients",
+            "R-Factor", "R^2", "chi^2", "red-chi^2", "Score"
+        ])
 
         niter, self.iter_list = self.generateRefList(self.ref_names[1:], self.sb_max_combo.value())
-        tot_combo = len(self.iter_list)
+
         for n, refs in enumerate(self.iter_list):
-            self.statusbar.showMessage(f"{n + 1}/{tot_combo}")
-            selectedRefs = list((str(self.ref_names[0]),) + refs)
-            self.fit_combo_progress.setValue((n + 1) * 100 / tot_combo)
+            self.statusbar.showMessage(f"{n + 1}/{niter}")
+            selectedRefs = [self.ref_names[0]] + list(refs)
+            self.fit_combo_progress.setValue(int((n + 1) * 100 / niter))
+
             self.stat, self.coeffs_arr = xanes_fitting_Binned(
                 self.im_stack, self.e_list + self.e_shift, self.refs[selectedRefs], method=self.fit_model
             )
 
             self.rfactor_list.append(self.stat["Reduced Chi_Square"])
             self.stat_view.plot(
-                x=np.arange(n + 1),
-                y=self.rfactor_list,
-                clear=True,
-                title="Reduced Chi^2",
-                pen=pg.mkPen("y", width=2, style=QtCore.Qt.DotLine),
-                symbol="o",
+                x=np.arange(n + 1), y=self.rfactor_list, clear=True,
+                title="Reduced Chi^2", pen=pg.mkPen("y", width=2, style=QtCore.Qt.PenStyle.DotLine), symbol="o"
             )
 
-            # arbitary number to rank the best fit
             fit_score = (self.stat["R_Square"] + np.sum(self.coeffs_arr)) / (
-                self.stat["R_Factor"] + self.stat["Reduced Chi_Square"]
-            )
+                self.stat["R_Factor"] + self.stat["Reduced Chi_Square"])
 
             resultsDict = {
                 "Fit Number": n,
@@ -800,88 +765,71 @@ class RefChooser(QtWidgets.QMainWindow):
                 "Score": np.around(fit_score, 4),
             }
 
-            self.df = pd.concat([self.df, pd.DataFrame([resultsDict])], ignore_index=True)
-
-            self.dataFrametoQTable(self.df)
-            QtTest.QTest.qWait(0.1)  # hepls with real time plotting
+            self.results_data.append(resultsDict)
+            self.appendToTableWidget(resultsDict)
+            QtTest.QTest.qWait(100)
 
         self.stat_view.addItem(self.selectionLine)
 
-    def dataFrametoQTable(self, df_: pd.DataFrame):
-        nRows = len(df_.index)
-        nColumns = len(df_.columns)
-        self.tableWidget.setRowCount(nRows)
-        self.tableWidget.setColumnCount(nColumns)
-        self.tableWidget.setHorizontalHeaderLabels(df_.columns)
-
-        for i in range(nRows):
-            for j in range(nColumns):
-                cell = QtWidgets.QTableWidgetItem(str(df_.values[i][j]))
-                self.tableWidget.setItem(i, j, cell)
-
-        # set the property of the table view. Size policy to make the contents justified
-        self.tableWidget.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
-        self.tableWidget.resizeColumnsToContents()
+    def appendToTableWidget(self, row_dict):
+        row_position = self.tableWidget.rowCount()
+        self.tableWidget.insertRow(row_position)
+        for col, key in enumerate([
+            "Fit Number", "References", "Coefficients", "Sum of Coefficients",
+            "R-Factor", "R^2", "chi^2", "red-chi^2", "Score"
+        ]):
+            item = QtWidgets.QTableWidgetItem(str(row_dict[key]))
+            self.tableWidget.setItem(row_position, col, item)
 
     def exportFitResults(self):
-        file_name = QFileDialog().getSaveFileName(self, "save csv", "xanes_fit_results_log.csv", "txt data (*csv)")
-        if file_name[0]:
-            with open(file_name[0], "w") as fp:
-                self.df.to_csv(fp)
-        else:
-            pass
+        if not hasattr(self, "results_data"):
+            return
+        df = pd.DataFrame(self.results_data)
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV", "xanes_fit_results_log.csv", "CSV Files (*.csv)")
+        if file_name:
+            df.to_csv(file_name, index=False)
 
     def selectTableAndCheckBox(self, x):
         nSelection = int(round(x))
         self.tableWidget.selectRow(nSelection)
-        fit_num = int(self.tableWidget.item(nSelection, 0).text())
-        refs_selected = self.iter_list[fit_num]
+        refs_selected = self.iter_list[int(self.tableWidget.item(nSelection, 0).text())]
 
-        # reset all the checkboxes to uncheck state, except the energy
-        for checkstate in self.findChildren(QtWidgets.QCheckBox):
-            if checkstate.isEnabled():
-                checkstate.setChecked(False)
+        for cb in self.findChildren(QtWidgets.QCheckBox):
+            if cb.isEnabled():
+                cb.setChecked(False)
 
-        for cb_names in refs_selected:
-            checkbox = self.findChild(QtWidgets.QCheckBox, name=cb_names)
-            checkbox.setChecked(True)
+        for name in refs_selected:
+            cb = self.findChild(QtWidgets.QCheckBox, name=name)
+            if cb:
+                cb.setChecked(True)
 
     def updateFitWithLine(self):
-        pos_x, pos_y = self.selectionLine.pos()
-        x = self.df.index[self.df[str("Fit Number")] == np.round(pos_x)][0]
+        pos_x, _ = self.selectionLine.pos()
+        x = int(round(pos_x))
         self.selectTableAndCheckBox(x)
 
     def updateWithTableSelection(self):
-        x = self.tableWidget.currentRow()
-        self.selectTableAndCheckBox(x)
+        self.selectTableAndCheckBox(self.tableWidget.currentRow())
 
     def moveSelectionLine(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            Pos = self.stat_view.plotItem.vb.mapSceneToView(event.pos())
-            self.selectionLine.setPos(Pos.x())
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            pos = self.stat_view.plotItem.vb.mapSceneToView(event.pos())
+            self.selectionLine.setPos(pos.x())
 
     def sortTable(self):
-        sorter_dict = {
-            "R-Factor": "R-Factor",
-            "R-Square": "R^2",
-            "Chi-Square": "chi^2",
-            "Reduced Chi-Square": "red-chi^2",
-            "Fit Number": "Fit Number",
+        key_map = {
+            "R-Factor": 4,
+            "R-Square": 5,
+            "Chi-Square": 6,
+            "Reduced Chi-Square": 7,
+            "Fit Number": 0,
         }
-        sorter = sorter_dict[self.cb_sorter.currentText()]
-        self.df = self.df.sort_values(sorter, ignore_index=True)
-        self.dataFrametoQTable(self.df)
+        col_index = key_map.get(self.cb_sorter.currentText(), 0)
+        self.tableWidget.sortItems(col_index, QtCore.Qt.SortOrder.AscendingOrder)
 
     def enableApply(self):
-
-        """ """
         self.populateChecked()
-        if len(self.onlyCheckedBoxes) > 1:
-            self.pb_apply.setEnabled(True)
-        else:
-            self.pb_apply.setEnabled(False)
-
-
+        self.pb_apply.setEnabled(len(self.onlyCheckedBoxes) > 1)
 
 class MultiXANESWindow(MultiChannelWindow):
 
