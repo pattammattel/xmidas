@@ -32,7 +32,7 @@ from packaging import version
 from PyQt6 import QtWidgets, QtCore, QtGui, uic, QtTest
 from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR, QTimer
 
 
 from xmidas.utils.utils import *
@@ -1396,17 +1396,19 @@ class midasWindow(QtWidgets.QMainWindow):
     def initNormVals(self):
         self.getLivePlotData()
         e0_init = self.e_[np.argmax(np.gradient(self.mu_))]
-        pre1, pre2, post1, post2 = xanesNormalization(
+        pre_edge, post_edge, norm = xanesNormalization(
             self.e_,
             self.mu_,
             e0=e0_init,
             nnorm=1,
             nvict=0,
         )
-        self.dsb_norm_pre1.setValue(pre1)
-        self.dsb_norm_pre2.setValue(pre2)
-        self.dsb_norm_post1.setValue(post1)
-        self.dsb_norm_post2.setValue(post2)
+        # xanesNormalization now returns arrays, not scalar bounds
+        # Set reasonable default bounds for the UI based on standard XANES practice
+        self.dsb_norm_pre1.setValue(-50)  # 50 eV before edge
+        self.dsb_norm_pre2.setValue(-20)  # 20 eV before edge
+        self.dsb_norm_post1.setValue(50)   # 50 eV after edge
+        self.dsb_norm_post2.setValue(150)  # 150 eV after edge
         self.dsb_norm_Eo.setValue(e0_init)
 
     def getNormParams(self):
@@ -1515,14 +1517,12 @@ class midasWindow(QtWidgets.QMainWindow):
             self.e_,
             self.displayedStack,
             e0=eo_,
-            step=None,
             nnorm=norm_order,
             nvict=0,
             pre1=pre1_,
             pre2=pre2_,
             norm1=norm1_,
             norm2=norm2_,
-            useFlattened=self.cb_xanes_flat.isChecked(),
             ignorePostEdgeNorm=self.cb_xanes_postedge.isChecked()
         )
         # self.im_stack = self.displayedStack
