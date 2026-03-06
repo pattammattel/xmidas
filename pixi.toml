@@ -2,10 +2,17 @@
 authors = ["Ajith Pattammattel <pattammattel@bnl.gov>"]
 channels = ["conda-forge"]
 name = "xmidas"
-platforms = ["osx-arm64"]
 version = "0.1.0"
+platforms = ["osx-arm64", "linux-64"] 
+
+[system-requirements]
+# This tells Pixi that your Linux target is RHEL 9 (glibc 2.34)
+libc = { family = "glibc", version = "2.34" }
 
 [tasks]
+# This creates a shortcut so you just run 'pixi run gui'
+# I named it 'gui' here for brevity, but 'run-xmidas' works too!
+run-xmidas = "python -m xmidas.main"
 
 [dependencies]
 python = "3.12.*"
@@ -23,3 +30,5 @@ pyqt6 = ">=6.10.2, <7"
 pystackreg = ">=0.2.8, <0.3"
 xraydb = ">=4.5.8, <5"
 pyqtgraph = ">=0.14.0, <0.15"
+opencv-python = ">=4.13.0.92, <5"
+
