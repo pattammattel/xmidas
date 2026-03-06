@@ -1,4 +1,4 @@
-[workspace]
+[project] # Use [project] instead of [workspace] for a single package
 authors = ["Ajith Pattammattel <pattammattel@bnl.gov>"]
 channels = ["conda-forge"]
 name = "xmidas"
@@ -6,13 +6,22 @@ version = "0.1.0"
 platforms = ["osx-arm64", "linux-64"] 
 
 [system-requirements]
-# This tells Pixi that your Linux target is RHEL 9 (glibc 2.34)
 libc = { family = "glibc", version = "2.34" }
 
+# --- TARGET SPECIFIC PYQT6 (The Fix) ---
+
+[target.linux-64.dependencies]
+pyqt6 = ">=6.8.1,<7"
+
+[target.osx-arm64.pypi-dependencies]
+pyqt6 = ">=6.8.1,<7"
+
+# --- TASKS ---
+
 [tasks]
-# This creates a shortcut so you just run 'pixi run gui'
-# I named it 'gui' here for brevity, but 'run-xmidas' works too!
-run-xmidas = "python -m xmidas.main"
+xmidas = "python -m xmidas.main"
+
+# --- GLOBAL DEPENDENCIES (Common to both) ---
 
 [dependencies]
 python = "3.12.*"
@@ -24,7 +33,7 @@ scikit-learn = ">=1.8.0,<2"
 scipy = ">=1.17.0,<2"
 tifffile = ">=2026.1.28,<2027"
 packaging = ">=26.0,<27"
-pyqt6 = ">=6.8.1,<7"
+# REMOVED pyqt6 from here
 
 [pypi-dependencies]
 pystackreg = ">=0.2.8, <0.3"
