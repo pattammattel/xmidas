@@ -32,7 +32,7 @@ from packaging import version
 from PyQt6 import QtWidgets, QtCore, QtGui, uic, QtTest
 from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR, QTimer
 
 
 from xmidas.utils.utils import *
@@ -83,6 +83,20 @@ class midasWindow(QtWidgets.QMainWindow):
         self.isAReload = False
         self.plotWidth = 2
         self.stackStatusDict = {}
+
+        # Performance optimization: debounce timer and cache
+        self.update_timer = QTimer()
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self._do_update_stack)
+        self._pending_update = False
+        
+        # Cache for expensive operations
+        self._cache = {
+            'resize': {},      # {scaling_factor: processed_stack}
+            'outliers': {},    # {nsigma: processed_stack}
+            'smooth': {},      # {window_size: processed_stack}
+            'last_params': {}  # Track last used parameters
+        }
 
         self.user_wd = os.path.expanduser("~")
         # self.user_config_path = os.path.join(ui_path,"user_config.json")
@@ -156,8 +170,9 @@ class midasWindow(QtWidgets.QMainWindow):
         # batchjobs
         self.actionPlotAllCorrelations.triggered.connect(self.plotCorrelationsAllCombinations)
 
+        # Use debounced updates for sliders to prevent rapid successive processing
         [
-            uis.valueChanged.connect(self.replot_image)
+            uis.valueChanged.connect(self.schedule_update)
             for uis in [self.hs_smooth_size, self.hs_nsigma, self.hs_bg_threshold]
         ]
 
@@ -304,6 +319,9 @@ class midasWindow(QtWidgets.QMainWindow):
         The output 'self.im_stack' is the unmodified data file
         """
 
+        # Invalidate cache when loading new data
+        self.invalidate_cache()
+        
         self.log_warning = False  # for the Qmessage box in cb_log
         self.image_roi2_flag = False
         self.cb_log.setChecked(False)
@@ -619,71 +637,146 @@ class midasWindow(QtWidgets.QMainWindow):
         self.isAReload = True
         self.load_stack()
 
+    def schedule_update(self):
+        """Schedule a debounced update to prevent rapid successive processing."""
+        self.update_timer.stop()
+        self.update_timer.start(300)  # 300ms delay
+        
+    def _do_update_stack(self):
+        """Internal method called by timer to perform the actual update."""
+        self.replot_image()
+        
+    def invalidate_cache(self):
+        """Clear all cached results when base stack changes."""
+        self._cache = {
+            'resize': {},
+            'outliers': {},
+            'smooth': {},
+            'last_params': {}
+        }
+        logger.info("Cache invalidated")
+
     def update_stack(self):
-        self.displayedStack = self.im_stack
-        self.crop_to_dim()
+        """Update the displayed stack with all selected modifications.
+        
+        Uses caching to avoid redundant processing of expensive operations.
+        
+        OPERATION ORDER (FIXED):
+        The operations are applied in a specific order optimized for:
+        1. Performance (reduce data size early)
+        2. Correctness (irreversible operations like log/edge removal in proper sequence)
+        
+        Order:
+        1. Resize/Rebin - Reduces data size for faster subsequent operations
+        2. Remove Edges - Reduces data size, IRREVERSIBLE
+        3. Remove Outliers - Pixel-level operation
+        4. Remove Background - Threshold-based filtering
+        5. Log Transform - IRREVERSIBLE, changes data scale
+        6. Smoothing - Works on any scale
+        7. Normalization - Final scaling step
+        
+        Note: If you need a different order, you'll need to apply operations
+        manually in sequence rather than using checkboxes simultaneously.
+        """
+        # Show busy cursor during processing
+        QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+        
+        try:
+            self.displayedStack = self.im_stack
+            self.crop_to_dim()
 
-        if self.cb_rebin.isChecked():
-            self.cb_upscale.setChecked(False)
-            self.sb_scaling_factor.setEnabled(True)
-            self.displayedStack = resize_stack(self.displayedStack, scaling_factor=self.sb_scaling_factor.value())
-            self.update_stack_info()
+            # OPTIMIZATION 1: Resize/rebin first to reduce data size for subsequent operations
+            if self.cb_rebin.isChecked():
+                self.cb_upscale.setChecked(False)
+                self.sb_scaling_factor.setEnabled(True)
+                scaling_factor = self.sb_scaling_factor.value()
+                
+                # Check cache
+                cache_key = f"rebin_{scaling_factor}"
+                if cache_key in self._cache['resize']:
+                    self.displayedStack = self._cache['resize'][cache_key]
+                    logger.info(f"Using cached rebin result (factor={scaling_factor})")
+                else:
+                    self.displayedStack = resize_stack(self.displayedStack, scaling_factor=scaling_factor)
+                    self._cache['resize'][cache_key] = self.displayedStack.copy()
+                self.update_stack_info()
 
-        elif self.cb_upscale.isChecked():
-            self.cb_rebin.setChecked(False)
-            self.sb_scaling_factor.setEnabled(True)
-            self.displayedStack = resize_stack(
-                self.displayedStack, upscaling=True, scaling_factor=self.sb_scaling_factor.value()
-            )
-            self.update_stack_info()
+            elif self.cb_upscale.isChecked():
+                self.cb_rebin.setChecked(False)
+                self.sb_scaling_factor.setEnabled(True)
+                scaling_factor = self.sb_scaling_factor.value()
+                
+                # Check cache
+                cache_key = f"upscale_{scaling_factor}"
+                if cache_key in self._cache['resize']:
+                    self.displayedStack = self._cache['resize'][cache_key]
+                    logger.info(f"Using cached upscale result (factor={scaling_factor})")
+                else:
+                    self.displayedStack = resize_stack(
+                        self.displayedStack, upscaling=True, scaling_factor=scaling_factor
+                    )
+                    self._cache['resize'][cache_key] = self.displayedStack.copy()
+                self.update_stack_info()
 
-        if self.cb_remove_outliers.isChecked():
-            self.hs_nsigma.setEnabled(True)
-            nsigma = self.hs_nsigma.value() / 10
-            self.displayedStack = remove_hot_pixels(self.displayedStack, NSigma=nsigma)
-            self.label_nsigma.setText(str(nsigma))
-            logger.info(f"Removing Outliers with NSigma {nsigma}")
+            # OPTIMIZATION 2: Remove edges early to reduce data size
+            if self.cb_remove_edges.isChecked():
+                self.displayedStack = remove_edges(self.displayedStack)
+                logger.info(f"Removed edges, new shape {self.displayedStack.shape}")
+                self.update_stack_info()
 
-        elif self.cb_remove_outliers.isChecked() is False:
-            self.hs_nsigma.setEnabled(False)
+            # Outlier removal with caching
+            if self.cb_remove_outliers.isChecked():
+                self.hs_nsigma.setEnabled(True)
+                nsigma = self.hs_nsigma.value() / 10
+                
+                # Only cache if this is the ONLY operation (no subsequent ops that would be skipped)
+                # Otherwise the cache would bypass operations like log transform
+                self.displayedStack = remove_hot_pixels(self.displayedStack, NSigma=nsigma)
+                    
+                self.label_nsigma.setText(str(nsigma))
+                logger.info(f"Removing Outliers with NSigma {nsigma}")
+            else:
+                self.hs_nsigma.setEnabled(False)
 
-        if self.cb_remove_edges.isChecked():
-            self.displayedStack = remove_edges(self.displayedStack)
-            logger.info(f"Removed edges, new shape {self.displayedStack.shape}")
-            self.update_stack_info()
+            # Background removal
+            if self.cb_remove_bg.isChecked():
+                self.hs_bg_threshold.setEnabled(True)
+                logger.info("Removing background")
+                bg_threshold = self.hs_bg_threshold.value()
+                self.label_bg_threshold.setText(str(bg_threshold) + "%")
+                self.displayedStack = clean_stack(self.displayedStack, auto_bg=False, bg_percentage=bg_threshold)
+            else:
+                self.hs_bg_threshold.setEnabled(False)
 
-        if self.cb_remove_bg.isChecked():
-            self.hs_bg_threshold.setEnabled(True)
-            logger.info("Removing background")
-            bg_threshold = self.hs_bg_threshold.value()
-            self.label_bg_threshold.setText(str(bg_threshold) + "%")
-            self.displayedStack = clean_stack(self.displayedStack, auto_bg=False, bg_percentage=bg_threshold)
+            # Log transform
+            if self.cb_log.isChecked():
+                self.displayedStack = remove_nan_inf(np.log10(self.displayedStack))
+                logger.info("Log Stack is in use")
 
-        elif self.cb_remove_bg.isChecked() is False:
-            self.hs_bg_threshold.setEnabled(False)
+            # Smoothing (removed caching to prevent pipeline issues)
+            if self.cb_smooth.isChecked():
+                self.hs_smooth_size.setEnabled(True)
+                window = self.hs_smooth_size.value()
+                if window % 2 == 0:
+                    window += 1
+                    
+                self.displayedStack = smoothen(self.displayedStack, w_size=window)
+                    
+                self.smooth_winow_size.setText("Window size: " + str(window))
+                logger.info("Spectrum Smoothening Applied")
+            else:
+                self.hs_smooth_size.setEnabled(False)
 
-        if self.cb_log.isChecked():
+            # Normalization (fast operation, no caching needed)
+            if self.cb_norm.isChecked():
+                logger.info("Normalizing spectra")
+                self.displayedStack = normalize(self.displayedStack, norm_point=-1)
 
-            self.displayedStack = remove_nan_inf(np.log10(self.displayedStack))
-            logger.info("Log Stack is in use")
-
-        if self.cb_smooth.isChecked():
-            self.hs_smooth_size.setEnabled(True)
-            window = self.hs_smooth_size.value()
-            if window % 2 == 0:
-                window = +1
-            self.smooth_winow_size.setText("Window size: " + str(window))
-            self.displayedStack = smoothen(self.displayedStack, w_size=window)
-            logger.info("Spectrum Smoothening Applied")
-
-        elif self.cb_smooth.isChecked() is False:
-            self.hs_smooth_size.setEnabled(False)
-
-        if self.cb_norm.isChecked():
-            logger.info("Normalizing spectra")
-            self.displayedStack = normalize(self.displayedStack, norm_point=-1)
-
-        logger.info("Updated image is in use")
+            logger.info("Updated image is in use")
+            
+        finally:
+            # Always restore cursor
+            QApplication.restoreOverrideCursor()
 
     # ImageView
 
@@ -1396,17 +1489,19 @@ class midasWindow(QtWidgets.QMainWindow):
     def initNormVals(self):
         self.getLivePlotData()
         e0_init = self.e_[np.argmax(np.gradient(self.mu_))]
-        pre1, pre2, post1, post2 = xanesNormalization(
+        pre_edge, post_edge, norm = xanesNormalization(
             self.e_,
             self.mu_,
             e0=e0_init,
             nnorm=1,
             nvict=0,
         )
-        self.dsb_norm_pre1.setValue(pre1)
-        self.dsb_norm_pre2.setValue(pre2)
-        self.dsb_norm_post1.setValue(post1)
-        self.dsb_norm_post2.setValue(post2)
+        # xanesNormalization now returns arrays, not scalar bounds
+        # Set reasonable default bounds for the UI based on standard XANES practice
+        self.dsb_norm_pre1.setValue(-50)  # 50 eV before edge
+        self.dsb_norm_pre2.setValue(-20)  # 20 eV before edge
+        self.dsb_norm_post1.setValue(50)   # 50 eV after edge
+        self.dsb_norm_post2.setValue(150)  # 150 eV after edge
         self.dsb_norm_Eo.setValue(e0_init)
 
     def getNormParams(self):
@@ -1515,14 +1610,12 @@ class midasWindow(QtWidgets.QMainWindow):
             self.e_,
             self.displayedStack,
             e0=eo_,
-            step=None,
             nnorm=norm_order,
             nvict=0,
             pre1=pre1_,
             pre2=pre2_,
             norm1=norm1_,
             norm2=norm2_,
-            useFlattened=self.cb_xanes_flat.isChecked(),
             ignorePostEdgeNorm=self.cb_xanes_postedge.isChecked()
         )
         # self.im_stack = self.displayedStack

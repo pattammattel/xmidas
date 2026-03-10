@@ -844,10 +844,10 @@ def create_df_from_nor(athenafile="fe_refs.nor"):
     skip_raw_n = n_refs + 6
 
     df = pd.read_table(
-        athenafile, delim_whitespace=True, skiprows=skip_raw_n, header=None, usecols=np.arange(0, n_refs)
+        athenafile, sep=r'\s+', skiprows=skip_raw_n, header=None, usecols=np.arange(0, n_refs)
     )
     df2 = pd.read_table(
-        athenafile, delim_whitespace=True, skiprows=skip_raw_n - 1, usecols=np.arange(0, n_refs + 1)
+        athenafile, sep=r'\s+', skiprows=skip_raw_n - 1, usecols=np.arange(0, n_refs + 1)
     )
     new_col = df2.columns.drop("#")
     df.columns = new_col
@@ -870,7 +870,7 @@ def create_df_from_nor_try2(athenafile="fe_refs.nor"):
 
 
 def energy_from_logfile(logfile="maps_log_tiff.txt"):
-    df = pd.read_csv(logfile, header=None, delim_whitespace=True, skiprows=9)
+    df = pd.read_csv(logfile, header=None, sep=r'\s+', skiprows=9)
     return df[9][df[7] == "energy"].values.astype(float)
 
 
