@@ -597,10 +597,9 @@ class XANESViewer(QtWidgets.QMainWindow):
     def export_data_and_params(self, folder = None):
 
         if folder is None:
-            file_name,_ = QFileDialog().getSaveFileName(self, 
-                                                    "save to folder",
-                                                    os.path.join(self.user_wd, "xanes_data"),
-                                                    options = QFileDialog.ShowDirsOnly)
+            file_name = QFileDialog.getExistingDirectory(self, 
+                                                    "Select folder to save data",
+                                                    os.path.join(self.user_wd, "xanes_data"))
             
         else:
             file_name = folder

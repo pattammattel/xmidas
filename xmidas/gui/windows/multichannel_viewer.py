@@ -79,9 +79,8 @@ class MultiChannelWindow(QtWidgets.QMainWindow):
     def loadMultipleImageFiles(self):
 
         filter = "TIFF (*.tiff);;TIF (*.tif)"
-        QtWidgets.QFileDialog().setFileMode(QtWidgets.QFileDialog.ExistingFiles)
         # choose mutliple tiff files
-        names = QtWidgets.QFileDialog().getOpenFileNames(self, "Open files", " ", filter)
+        names = QFileDialog.getOpenFileNames(self, "Open files", " ", filter)
         if names[0]:
             self.image_dict = {}
             # select the file directory. Image files are expected to be in the same folder
@@ -113,7 +112,7 @@ class MultiChannelWindow(QtWidgets.QMainWindow):
         All other steps are similar to the loadMultipleImageFiles function"""
 
         filter = "TIFF (*.tiff);;TIF (*.tif)"
-        file_name = QtWidgets.QFileDialog().getOpenFileName(
+        file_name = QFileDialog.getOpenFileName(
             self, "Open a Stack", "", "TIFF(*tiff *tif);;all_files (*)", filter
         )
         if file_name[0]:

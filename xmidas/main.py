@@ -294,9 +294,7 @@ class midasWindow(QtWidgets.QMainWindow):
         """
         self.energy = []
         filter = "TIFF (*.tiff);;TIF (*.tif);;all_files (*)"
-        file_name = QFileDialog()
-        file_name.setFileMode(QFileDialog.FileMode.ExistingFiles)
-        names = file_name.getOpenFileNames(self, "Open files", self.user_wd, filter)
+        names = QFileDialog.getOpenFileNames(self, "Open files", self.user_wd, filter)
         if names[0]:
 
             self.file_name = names[0]
@@ -415,7 +413,7 @@ class midasWindow(QtWidgets.QMainWindow):
         """To open a file widow and choose the data file.
         The filename will be used to load data using 'rest and load stack' function"""
 
-        filename = QFileDialog().getOpenFileName(
+        filename = QFileDialog.getOpenFileName(
             self, "Select image data", self.user_wd, "image file(*.hdf *.h5 *tiff *tif )"
         )
         self.file_name = str(filename[0])
@@ -524,7 +522,7 @@ class midasWindow(QtWidgets.QMainWindow):
     # Alignement
 
     def loadAlignRefImage(self):
-        filename = QFileDialog().getOpenFileName(self, "Image Data", self.user_wd, "*.tiff *.tif")
+        filename = QFileDialog.getOpenFileName(self, "Image Data", self.user_wd, "*.tiff *.tif")
         file_name = str(filename[0])
         self.user_wd = os.path.dirname(file_name)
         self.alignRefImage = tf.imread(file_name)
@@ -597,7 +595,7 @@ class midasWindow(QtWidgets.QMainWindow):
 
         
 
-        file_name = QFileDialog().getSaveFileName(
+        file_name = QFileDialog.getSaveFileName(
                                         self, 
                                         "Save Transformation File", 
                                         os.path.join(self.user_wd,"TranformationMatrix.npy"), 
@@ -610,7 +608,7 @@ class midasWindow(QtWidgets.QMainWindow):
             pass
 
     def importAlignTransformation(self):
-        file_name = QFileDialog().getOpenFileName(self, "Open Transformation File", self.user_wd, "text file (*.npy)")
+        file_name = QFileDialog.getOpenFileName(self, "Open Transformation File", self.user_wd, "text file (*.npy)")
         if file_name[0]:
             self.loaded_tranform_file = np.load(file_name[0])
             self.cb_use_tmatFile.setChecked(True)
@@ -894,7 +892,7 @@ class midasWindow(QtWidgets.QMainWindow):
     def select_ref_file(self):
         self.pb_xanes_fit.setEnabled(True)
         self.ref_names = []
-        file_name = QFileDialog().getOpenFileName(self, "Open reference file", self.user_wd, "text file (*.csv *.nor)")
+        file_name = QFileDialog.getOpenFileName(self, "Open reference file", self.user_wd, "text file (*.csv *.nor)")
         if file_name[0]:
             if file_name[0].endswith(".nor"):
                 self.refs, self.ref_names = create_df_from_nor_try2(athenafile=file_name[0])
@@ -941,13 +939,13 @@ class midasWindow(QtWidgets.QMainWindow):
     def getPointSpectrum(self, event):
         if event.type() == QtCore.QEvent.Type.MouseButtonDblClick:
             if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                self.xpixel = int(self.image_view.view.mapSceneToView(event.pos().toPointF()).x()) - 1
+                self.xpixel = int(self.image_view.view.mapSceneToView(event.position()).x()) - 1
                 zlim, ylim, xlim = self.displayedStack.shape
 
                 if self.xpixel > xlim:
                     self.xpixel = xlim - 1
 
-                self.ypixel = int(self.image_view.view.mapSceneToView(event.pos().toPointF()).y()) - 1
+                self.ypixel = int(self.image_view.view.mapSceneToView(event.position()).y()) - 1
                 if self.ypixel > ylim:
                     self.ypixel = ylim - 1
                 self.spectrum_view.addLegend()
@@ -1297,7 +1295,7 @@ class midasWindow(QtWidgets.QMainWindow):
         else:
             self.imageDf = image_to_pandas2(self.displayedStack)
 
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "Save CSV Data", 
                                                   os.path.join(self.user_wd,'image_2DArray.csv'), 
                                                   'file (*csv)')
@@ -1409,7 +1407,7 @@ class midasWindow(QtWidgets.QMainWindow):
     def save_stack(self, method="raw"):
 
         # self.update_stack()
-        file_name = QFileDialog().getSaveFileName(
+        file_name = QFileDialog.getSaveFileName(
             self, 
             "Save image data", 
             os.path.join(self.user_wd,"image_data.tiff"), 
@@ -1435,7 +1433,7 @@ class midasWindow(QtWidgets.QMainWindow):
             pass
 
     def save_disp_img(self):
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "Save image data",
                                                     os.path.join(self.user_wd,"image.tiff"), 
                                                     "image file(*tiff *tif )")
@@ -1523,7 +1521,7 @@ class midasWindow(QtWidgets.QMainWindow):
         self.xanesNormParam["post2"] = norm2_
         self.xanesNormParam["norm_order"] = norm_order
 
-        file_name = QtWidgets.QFileDialog().getSaveFileName(
+        file_name = QFileDialog.getSaveFileName(
             self, 
             "Save XANES Norm Params", 
             os.path.join(self.user_wd,"xanes_norm_params.csv"), 
@@ -1538,7 +1536,7 @@ class midasWindow(QtWidgets.QMainWindow):
 
     def importNormParams(self):
 
-        file_name = QtWidgets.QFileDialog().getOpenFileName(
+        file_name = QFileDialog.getOpenFileName(
             self, "Open a XANES Norm File", self.user_wd, "csv file(*csv);;all_files (*)"
         )
 
@@ -1635,7 +1633,7 @@ class midasWindow(QtWidgets.QMainWindow):
     def saveCollectorPlot(self):
         exporter = pg.exporters.CSVExporter(self.spectrum_view_collect.plotItem)
         #exporter.parameters()["columnMode"] = "(x,y,y,y) for all plots"
-        file_name = QFileDialog().getSaveFileName(self, "save spectra", self.user_wd, "spectra (*csv)")
+        file_name = QFileDialog.getSaveFileName(self, "save spectra", self.user_wd, "spectra (*csv)")
         if file_name[0]:
             exporter.export(file_name[0] + ".csv")
             self.user_wd = os.path.dirname(file_name[0])
@@ -1647,7 +1645,7 @@ class midasWindow(QtWidgets.QMainWindow):
 
         exporter = pg.exporters.CSVExporter(self.spectrum_view.plotItem)
         #exporter.parameters()["columnMode"] = "(x,y,y,y) for all plots"
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "save spectrum", 
                                                   os.path.join(self.user_wd,"spectrum.csv"), 
                                                   "spectra (*csv)")
@@ -1659,7 +1657,7 @@ class midasWindow(QtWidgets.QMainWindow):
             pass
 
     def saveEnergyList(self):
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "save energy list", 
                                                   os.path.join(self.user_wd,"energy_list.txt"), 
                                                   "text file (*txt)")
@@ -1750,7 +1748,7 @@ class midasWindow(QtWidgets.QMainWindow):
         button_name.setStyleSheet("background-color : rgb(0,150,0);" "color: rgb(255,255,255)")
 
     def energyFileChooser(self):
-        file_name = QFileDialog().getOpenFileName(self, 
+        file_name = QFileDialog.getOpenFileName(self, 
                                                   "Open energy list", 
                                                   self.user_wd, 
                                                   "text file (*.txt)")
@@ -1931,7 +1929,7 @@ class ComponentViewer(QtWidgets.QMainWindow):
             )
 
     def save_comp_data(self):
-        file_name = QFileDialog().getSaveFileName(self, "save all data", self.user_wd, "data(*tiff *tif *txt *png )")
+        file_name = QFileDialog.getSaveFileName(self, "save all data", self.user_wd, "data(*tiff *tif *txt *png )")
         if file_name[0]:
             self.show_all_spec(norm_to_max = False, add_offset = False)
             tf.imwrite(file_name[0] + "_components.tiff", np.float32(self.comp_stack))
@@ -2021,7 +2019,7 @@ class ClusterViewer(QtWidgets.QMainWindow):
         self.label_comp_number.setText(f"{im_index + 1}/{self.dim1}")
 
     def save_clust_data(self):
-        file_name = QFileDialog().getSaveFileName(self, "", "", "data(*tiff *tif *txt *png )")
+        file_name = QFileDialog.getSaveFileName(self, "", "", "data(*tiff *tif *txt *png )")
         if file_name[0]:
 
             tf.imwrite(
@@ -2166,7 +2164,7 @@ class ScatterPlot(QtWidgets.QMainWindow):
 
         exporter = pg.exporters.CSVExporter(self.w1)
         #exporter.parameters()["columnMode"] = "(x,y,y,y) for all plots"
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "save correlation", 
                                                   os.path.join(self.user_wd,"correlation.csv"), 
                                                   "spectrum and fit (*csv)")
@@ -2178,7 +2176,7 @@ class ScatterPlot(QtWidgets.QMainWindow):
             pass
 
     def tiff_export_images(self):
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "save images", 
                                                   os.path.join(self.user_wd,"image.txt"), 
                                                   "spectrum and fit (*tiff)")
@@ -2446,7 +2444,7 @@ class MaskedScatterPlotFit(QtWidgets.QMainWindow):
 
         exporter = pg.exporters.CSVExporter(self.canvas)
         #exporter.parameters()["columnMode"] = "(x,y,y,y) for all plots"
-        file_name = QFileDialog().getSaveFileName(
+        file_name = QFileDialog.getSaveFileName(
             self, "save correlation", "scatterData.csv", "spectrum and fit (*csv)"
         )
         if file_name[0]:
@@ -2457,7 +2455,7 @@ class MaskedScatterPlotFit(QtWidgets.QMainWindow):
 
     def saveImage(self):
 
-        file_name = QFileDialog().getSaveFileName(self, "Save image data", "image.tiff", "image file(*tiff *tif )")
+        file_name = QFileDialog.getSaveFileName(self, "Save image data", "image.tiff", "image file(*tiff *tif )")
         if file_name[0]:
             tf.imwrite(file_name[0], self.maskedImage)
             self.statusbar.showMessage(f"Data saved to {file_name[0]}")
@@ -2467,7 +2465,7 @@ class MaskedScatterPlotFit(QtWidgets.QMainWindow):
 
     def saveMask(self):
 
-        file_name = QFileDialog().getSaveFileName(self, "Save image data", "mask.tiff", "image file(*tiff *tif )")
+        file_name = QFileDialog.getSaveFileName(self, "Save image data", "mask.tiff", "image file(*tiff *tif )")
         if file_name[0]:
             tf.imwrite(file_name[0], self.mask)
             self.statusbar.showMessage(f"Data saved to {file_name[0]}")
@@ -2607,7 +2605,7 @@ class ComponentScatterPlot(QtWidgets.QMainWindow):
 
         exporter = pg.exporters.CSVExporter(self.w1)
         exporter.parameters()["columnMode"] = "(x,y,y,y) for all plots"
-        file_name = QFileDialog().getSaveFileName(self, "save correlation", "", "spectrum and fit (*csv)")
+        file_name = QFileDialog.getSaveFileName(self, "save correlation", "", "spectrum and fit (*csv)")
         if file_name[0]:
             exporter.export(file_name[0] + ".csv")
             self.statusbar.showMessage(f"Data saved to {file_name[0]}")
@@ -2615,7 +2613,7 @@ class ComponentScatterPlot(QtWidgets.QMainWindow):
             pass
 
     def tiff_export_images(self):
-        file_name = QFileDialog().getSaveFileName(self, "save images", "", "spectrum and fit (*tiff)")
+        file_name = QFileDialog.getSaveFileName(self, "save images", "", "spectrum and fit (*tiff)")
         if file_name[0]:
             tf.imwrite(file_name[0] + ".tiff", np.dstack([self.img1, self.img2]).T)
             self.statusbar.showMessage(f"Images saved to {file_name[0]}")
@@ -2731,7 +2729,7 @@ class CompositeScatterPlot(QtWidgets.QMainWindow):
 
         exporter = pg.exporters.CSVExporter(self.canvas)
         # exporter.parameters()['columnMode'] = '(x,y,y,y) for all plots'
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                   "Save CSV Data", 
                                                   os.path.join(self.user_wd,"scatter.csv"), 
                                                   "image file (*csv)")
@@ -2743,7 +2741,7 @@ class CompositeScatterPlot(QtWidgets.QMainWindow):
             pass
 
     def exportAsPNG(self):
-        file_name = QFileDialog().getSaveFileName(self, 
+        file_name = QFileDialog.getSaveFileName(self, 
                                                  "Save Image", 
                                                  os.path.join(self.user_wd,"image.png"),
                                                  "PNG(*.png);; TIFF(*.tiff);; JPG(*.jpg)"
