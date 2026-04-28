@@ -313,7 +313,7 @@ class XANESViewer(QtWidgets.QMainWindow):
 
     def fit_point_spectrum(self, event):
         if event.type() == QtCore.QEvent.Type.MouseButtonDblClick:
-            if event.button() == QtCore.Qt.LeftButton:
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
                 self.xpixel = int(self.image_view.view.mapSceneToView(event.pos()).x())
                 zlim, ylim, xlim = self.im_stack.shape
 
