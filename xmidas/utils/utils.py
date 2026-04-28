@@ -862,8 +862,12 @@ def create_df_from_nor_try2(athenafile="fe_refs.nor"):
     n_refs = refs.shape[-1]
     df_refs = pd.DataFrame(refs)
 
+    # Read the header line and parse column names properly
     df = pd.read_csv(athenafile, header=None)
-    new_col = list((str(df.iloc[n_refs + 5].values)).split(" ")[2::2])
+    # Find the line with column headers (starts with '#  energy')
+    header_line = df.iloc[n_refs + 5, 0]  # Get the actual string value
+    # Split by whitespace and remove the leading '#'
+    new_col = header_line.split()[1:]  # Skip the '#' symbol
     df_refs.columns = new_col
 
     return df_refs, list(new_col)
