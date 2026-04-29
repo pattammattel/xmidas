@@ -64,7 +64,7 @@ class singleStackViewer(QtWidgets.QMainWindow):
             self.dim3, self.dim2 = img_stack.shape
             self.dim1 = 1
         self.hs_img_stack.setMaximum(self.dim1 - 1)
-        self.hs_img_stack.setValue(np.round(self.dim1 / 2))
+        self.hs_img_stack.setValue(int(np.round(self.dim1 / 2)))
         self.displayStack()
 
         # connections

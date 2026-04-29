@@ -19,6 +19,7 @@ from packaging import version
 
 
 from PyQt6 import QtWidgets, QtCore, QtGui, uic, QtTest
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QMessageBox, QFileDialog, QApplication, QAbstractItemView, QTableWidgetItem
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, PYQT_VERSION_STR
@@ -26,7 +27,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, 
 from xmidas.utils import *
 from xmidas.utils.color_maps import *
 from xmidas.models.encoders import jsonEncoder
-from xmidas.utils.utils import xanes_fitting, xanes_fitting_1D, xanes_fitting_Binned, interploate_E, get_sum_spectra, get_mean_spectra, normalize_and_scale
+from xmidas.utils.utils import xanes_fitting, xanes_fitting_1D, xanes_fitting_Binned, interploate_E, get_sum_spectra, get_mean_spectra, normalize_and_scale, getDeconvolutedXANESSpectrum
 from xmidas.gui.windows.multichannel_viewer import MultiChannelWindow
 from xmidas.gui.windows.decomposition_viewer import *
 
@@ -313,7 +314,7 @@ class XANESViewer(QtWidgets.QMainWindow):
 
     def fit_point_spectrum(self, event):
         if event.type() == QtCore.QEvent.Type.MouseButtonDblClick:
-            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            if event.button() == Qt.MouseButton.LeftButton:
                 self.xpixel = int(self.image_view.view.mapSceneToView(event.pos()).x())
                 zlim, ylim, xlim = self.im_stack.shape
 
