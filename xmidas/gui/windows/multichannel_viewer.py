@@ -155,7 +155,7 @@ class MultiChannelWindow(QtWidgets.QMainWindow):
                      opacity=opacity)
 
         # set colorbar for thresholding
-        bar = pg.ColorBarItem(values=(lower_limit,upper_limit), cmap=cmap, 
+        bar = pg.ColorBarItem(values=(lower_limit,upper_limit), colorMap=cmap, 
                               limits=None, orientation="vertical")
         bar.setImageItem(img_)
         # set composition mode to plus for overlaying

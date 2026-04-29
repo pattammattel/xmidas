@@ -19,7 +19,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThreadPool, 
 
 from xmidas.gui.windows.multichannel_viewer import MultiChannelWindow
 from xmidas.utils import *
-from xmidas.utils.utils import cluster_stack
+from xmidas.utils.utils import cluster_stack, remove_nan_inf
 from xmidas.utils.color_maps import *
 from xmidas.models.encoders import jsonEncoder
 from xmidas.gui.windows.singleStackViewer import *

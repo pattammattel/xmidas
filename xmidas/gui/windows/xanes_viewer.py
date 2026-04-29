@@ -315,13 +315,13 @@ class XANESViewer(QtWidgets.QMainWindow):
     def fit_point_spectrum(self, event):
         if event.type() == QtCore.QEvent.Type.MouseButtonDblClick:
             if event.button() == Qt.MouseButton.LeftButton:
-                self.xpixel = int(self.image_view.view.mapSceneToView(event.pos()).x())
+                self.xpixel = int(self.image_view.view.mapSceneToView(QtCore.QPointF(event.pos())).x())
                 zlim, ylim, xlim = self.im_stack.shape
 
                 if self.xpixel > xlim:
                     self.xpixel = xlim
 
-                self.ypixel = int(self.image_view.view.mapSceneToView(event.pos()).y())
+                self.ypixel = int(self.image_view.view.mapSceneToView(QtCore.QPointF(event.pos())).y())
                 if self.ypixel > ylim:
                     self.ypixel = ylim
                 
@@ -813,7 +813,7 @@ class RefChooser(QtWidgets.QMainWindow):
 
     def moveSelectionLine(self, event):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            pos = self.stat_view.plotItem.vb.mapSceneToView(event.pos())
+            pos = self.stat_view.plotItem.vb.mapSceneToView(QtCore.QPointF(event.pos()))
             self.selectionLine.setPos(pos.x())
 
     def sortTable(self):
